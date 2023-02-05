@@ -99,5 +99,6 @@ func main() {
 		w.WriteHeader(204)
 	})
 
+	log.Printf("listening: %v", *listen)
 	log.Fatal(http.ListenAndServe(*listen, mux))
 }
