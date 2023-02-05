@@ -1,9 +1,12 @@
 {
-  description = "Tailscale WHOIS service binding on localhost port for authentication proxy.";
+  description = "Tailscale WHOIS service binding on localhost port for auth proxy.";
 
-  inputs.nixpkgs.url = "nixpkgs/nixos-22.11";
+  inputs = {
+    nixpkgs.url = "nixpkgs/nixos-unstable";
+  };
 
-  outputs = { self, nixpkgs }: 
+  outputs = { self, nixpkgs }:
+
   let
       # Use date as simple version.
       version = builtins.substring 0 8 self.lastModifiedDate;
@@ -41,5 +44,28 @@
       };
     });
     defaultPackage = forAllSystems (system: self.packages.${system}.ts-whois);
+
+    # Nixpkgs overlay.
+    overlay = overlaySelf: overlaySuper: {
+      ts-whois = self.defaultPackage.${overlaySuper.system};
+    };
+
+    homeManagerModule = { config, pkgs, ... }:
+    let cfg = config.services.ts-whois;
+    in {
+      options.services.ts-whois.enable = nixpkgs.lib.mkOption {
+        description = "Enable Tailscale WHOIS auth proxy service";
+        types = nixpkgs.lib.types.bool;
+        default = false;
+      };
+      config = {
+        Unit.Description = "Tailscale WHOIS auth proxy";
+        Service = {
+          ExecStart = nixpkgs.lib.escapeShellArgs "${pkgs.system.ts-whois}/bin/ts-whois";
+          Restart = "on-failure";
+        };
+        Install.WantedBy = [ "default.target" ];
+      };
+    };
   };
 }
