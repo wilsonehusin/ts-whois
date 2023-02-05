@@ -17,7 +17,7 @@ import (
 var (
 	socketPath  = flag.String("socket", "/var/run/tailscale/tailscaled.sock", "path to Tailscale UNIX socket")
 	allowedCIDR = flag.String("cidr", "127.0.0.1/32", "CIDR range for allowed request origin")
-	listen      = flag.String("listen", "127.0.0.1:8245", "Bind address to listen for requests")
+	listen      = flag.String("listen", "127.0.0.1:9466", "Bind address to listen for requests")
 )
 
 type TailscaleUserProfile struct {
