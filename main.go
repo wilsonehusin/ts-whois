@@ -92,6 +92,7 @@ func main() {
 		log.Printf("IP: %v, ID: %v, Name: %v", ip, user.ID, user.DisplayName)
 
 		w.Header().Set("X-TSAuth-ID", strconv.FormatInt(user.ID, 10))
+		w.Header().Set("X-TSAuth-User", user.LoginName)
 		w.Header().Set("X-TSAuth-Name", user.DisplayName)
 		if user.ProfilePicURL != "" {
 			w.Header().Set("X-TSAuth-Avatar", user.ProfilePicURL)
