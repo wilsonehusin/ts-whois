@@ -15,9 +15,9 @@ import (
 )
 
 var (
-	socketPath  = flag.String("socket", "/var/run/tailscale/tailscaled.sock", "path to Tailscale UNIX socket")
-	allowedCIDR = flag.String("cidr", "127.0.0.1/32", "CIDR range for allowed request origin")
-	listen      = flag.String("listen", "127.0.0.1:9466", "Bind address to listen for requests")
+	socketPath = flag.String("socket", "/var/run/tailscale/tailscaled.sock", "path to Tailscale UNIX socket")
+	skipOrigin = flag.String("skip-origin", "127.0.0.1/32", "CIDR range to skip auth, i.e. always allowed")
+	listen     = flag.String("listen", "127.0.0.1:9466", "Bind address to listen for requests")
 )
 
 type TailscaleUserProfile struct {
@@ -30,7 +30,7 @@ type TailscaleUserProfile struct {
 func main() {
 	flag.Parse()
 
-	cidr, err := netip.ParsePrefix(*allowedCIDR)
+	cidrOrigin, err := netip.ParsePrefix(*skipOrigin)
 	if err != nil {
 		panic(err)
 	}
@@ -45,20 +45,21 @@ func main() {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		reqOrigin, err := netip.ParseAddrPort(r.RemoteAddr)
+		ip := r.Header.Get("X-Forwarded-For")
+		log.Printf("[%s->%s] %s", r.RemoteAddr, r.Host, ip)
+		reqOrigin, err := netip.ParseAddr(ip)
 		if err != nil {
 			w.WriteHeader(500)
 			log.Printf("error: %v", err)
 			return
 		}
-		if !cidr.Contains(reqOrigin.Addr()) {
-			w.WriteHeader(403)
-			log.Printf("[%s->%s] FORBIDDEN", r.RemoteAddr, r.Host)
+		if cidrOrigin.Contains(reqOrigin) {
+			w.WriteHeader(204)
+			w.Header().Set("X-TSAuth-User", r.RemoteAddr)
+			w.Header().Set("X-TSAuth-Name", "anonymous")
+			log.Printf("match skip origin: %s", *skipOrigin)
 			return
 		}
-
-		ip := r.Header.Get("X-Forwarded-For")
-		log.Printf("[%s->%s] %s", r.RemoteAddr, r.Host, ip)
 
 		// Port seems like magic number that just needs to be there?
 		// Hostname is hardcoded:
@@ -97,6 +98,7 @@ func main() {
 		if user.ProfilePicURL != "" {
 			w.Header().Set("X-TSAuth-Avatar", user.ProfilePicURL)
 		}
+
 		w.WriteHeader(204)
 	})
 
