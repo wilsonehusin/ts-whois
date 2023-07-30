@@ -11,7 +11,6 @@ import (
 	"net"
 	"net/http"
 	"net/netip"
-	"strconv"
 )
 
 var (
@@ -55,8 +54,8 @@ func main() {
 		}
 		if cidrOrigin.Contains(reqOrigin) {
 			w.WriteHeader(204)
-			w.Header().Set("X-TSAuth-User", r.RemoteAddr)
-			w.Header().Set("X-TSAuth-Name", "anonymous")
+			w.Header().Set("Tailscale-User-Login", r.RemoteAddr)
+			w.Header().Set("Tailscale-User-Name", "anonymous")
 			log.Printf("match skip origin: %s", *skipOrigin)
 			return
 		}
@@ -92,12 +91,8 @@ func main() {
 
 		log.Printf("IP: %v, ID: %v, Name: %v", ip, user.ID, user.DisplayName)
 
-		w.Header().Set("X-TSAuth-ID", strconv.FormatInt(user.ID, 10))
-		w.Header().Set("X-TSAuth-User", user.LoginName)
-		w.Header().Set("X-TSAuth-Name", user.DisplayName)
-		if user.ProfilePicURL != "" {
-			w.Header().Set("X-TSAuth-Avatar", user.ProfilePicURL)
-		}
+		w.Header().Set("Tailscale-User-Login", user.LoginName)
+		w.Header().Set("Tailscale-User-Name", user.DisplayName)
 
 		w.WriteHeader(204)
 	})
